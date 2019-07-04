@@ -1,65 +1,53 @@
 extends Area2D
 
-var button_pressed : bool = false
-var active_piece : bool = false
-var resting_node = "empty"
-var resting_position = Vector2(0,0)
-var active_node
+signal now_occupied
+
+# Drop location related
+onready var resting_node = null
+onready var resting_position = self.position
+var active_drop_node
+var active_drop_position
+var active_drop_viable
+
+# Game piece related.
+var piece_active : bool = false
+var piece_pressed : bool = false
 
 func _ready():
-	resting_position = self.position
 
 func _process(delta):
-	if button_pressed:
+	if piece_pressed:
 		set_position(get_viewport().get_mouse_position())
 
 func _on_Piece_mouse_entered():
-	active_piece = true
+	piece_active = true
 
 func _on_Piece_mouse_exited():
-	active_piece = false
+	piece_active = false
+
+# Recieve signal from BoardCollisionArea.gd
+func _entered_node(entered, name, pos, is_occupied):
+	if entered == true:
+		active_drop_node = name
+		active_drop_position = pos
+		active_drop_viable = is_occupied
+	else:
+		active_drop_viable = false
 
 func _on_Piece_input_event(viewport, event, shape_idx):
-	
-	# If you have picked up the piece, remove its old resting spot from GlobalStorage.
-	if active_piece == true and event is InputEventMouseButton and event.pressed and event.button_index == BUTTON_LEFT:
+	if piece_active == true and event is InputEventMouseButton and event.pressed and event.button_index == BUTTON_LEFT:
 		print("Clicked") # Debug log.
-		button_pressed = true
-		if get_node("/root/GlobalStorage")._get_global_occupied_nodes().has(resting_node):
-			get_node("/root/GlobalStorage")._remove_global_occupied_nodes(resting_node)
-	
-	# If you let go of the piece find a new spot to drop, or return to the last one.
+		piece_pressed = true
 	elif active_piece == true and event is InputEventMouseButton and event.pressed == false and event.button_index == BUTTON_LEFT:
+		print("Unclicked") # Debug log.
 		button_pressed = false
+		if active_drop_viable == true:
+			resting_node = active_drop_node
+			resting_position = active_drop_position
+			emit_signal("now_occupied", resting_node) # Send singal to all nodes, that node is now occupied
+		else
+			pass
+		self.position = resting_position
+			
 		
-		# Check if you need to drop it in a square.
-		if get_node("/root/GlobalStorage")._get_alternate_drop_location() == true:
-			if get_node("/root/GlobalStorage")._check_if_space_occupied(get_node("/root/GlobalStorage")._get_global_node_entered_name()):
-				# Space is occupied, so return to previous
-				set_position(resting_position)
-				resting_node = "empty"
-				print("Node full")
-			else:
-				# Get name of node & location entered.
-				self.position = get_node("/root/GlobalStorage")._get_drop_location() 
-				resting_position = self.position
-				resting_node = get_node("/root/GlobalStorage")._get_global_node_entered_name()
-				print("Dropped piece in empty node")
-				
-				# Add its name to GlobalStorage.
-				get_node("/root/GlobalStorage")._add_global_occupied_nodes(resting_node)
-		else:
-			set_position(get_viewport().get_mouse_position())
-			# self.position = resting_position
-			resting_position = get_viewport().get_mouse_position()
-			resting_node = "empty"
-			print("No alternate drop location.")
-	else:
-		pass
-
-func when_entered_node():
-	active_node = 
-
-
-func check_if_occupied():
 	
